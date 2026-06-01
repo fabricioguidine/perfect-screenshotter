@@ -1,49 +1,81 @@
 """
 Perfect Screenshotter - Capture pixel-perfect screenshots of specific windows.
+
+Window capture uses the Win32 GDI API and therefore only runs on Windows. The
+module still imports cleanly on any platform so the filename/path helpers can be
+reused and tested; the Win32 backend is loaded lazily on first use.
 """
 
 import argparse
-import ctypes
-import io
-import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
-# Fix console encoding for Unicode characters
-if sys.stdout.encoding != 'utf-8':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-
-import win32gui
-import win32ui
-import win32con
-import win32process
-from PIL import Image
-
-
-# Enable DPI awareness for accurate window dimensions
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
-except Exception:
+# Prefer UTF-8 for window titles with non-ASCII characters. reconfigure is
+# guarded for streams that don't support it.
+for _stream in (sys.stdout, sys.stderr):
     try:
-        ctypes.windll.user32.SetProcessDPIAware()  # Fallback
-    except Exception:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
         pass
+
+
+def _load_win32():
+    """Import the Win32 backend, failing with a clear, OS-specific message."""
+    try:
+        import ctypes
+
+        import win32con
+        import win32gui
+        import win32process
+        import win32ui
+        from PIL import Image
+    except ImportError as exc:  # off-Windows: pywin32 is unavailable
+        raise RuntimeError(
+            "Window capture requires Windows with pywin32 and Pillow installed."
+        ) from exc
+
+    # Enable DPI awareness for accurate window dimensions.
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()  # Fallback
+        except Exception:
+            pass
+
+    return ctypes, win32gui, win32ui, win32con, win32process, Image
+
+
+def sanitize_title(window_title):
+    """Turn a window title into a safe filename stem (<=50 chars)."""
+    return "".join(
+        c if c.isalnum() or c in " -_" else "_" for c in window_title
+    )[:50]
+
+
+def default_output_path(window_title, out_dir="screenshots", now=None):
+    """Build the default timestamped output path for a capture."""
+    now = now or datetime.now()
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
+    return Path(out_dir) / f"{sanitize_title(window_title)}_{timestamp}.png"
 
 
 def get_process_name(hwnd):
     """Get the process name for a window handle."""
     try:
-        _, pid = win32process.GetWindowThreadProcessId(hwnd)
         import psutil
-        process = psutil.Process(pid)
-        return process.name()
+
+        win32process = _load_win32()[4]
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        return psutil.Process(pid).name()
     except Exception:
         return "Unknown"
 
 
 def list_windows(show_all=False):
     """List all visible windows with their titles and handles."""
+    _, win32gui, _, _, _, _ = _load_win32()
     windows = []
 
     def enum_callback(hwnd, results):
@@ -90,6 +122,8 @@ def capture_window(hwnd, client_only=False):
     Returns:
         PIL Image object
     """
+    ctypes, win32gui, win32ui, win32con, _, Image = _load_win32()
+
     if client_only:
         # Get client area dimensions
         left, top, right, bottom = win32gui.GetClientRect(hwnd)
@@ -151,6 +185,7 @@ def capture_window(hwnd, client_only=False):
 
 def bring_window_to_front(hwnd):
     """Bring a window to the foreground."""
+    _, win32gui, _, win32con, _, _ = _load_win32()
     try:
         # Restore if minimized
         if win32gui.IsIconic(hwnd):
@@ -164,16 +199,12 @@ def bring_window_to_front(hwnd):
 def save_screenshot(img, output_path=None, window_title="screenshot"):
     """Save the screenshot to a file."""
     if output_path is None:
-        # Create screenshots directory if it doesn't exist
-        os.makedirs("screenshots", exist_ok=True)
+        output_path = default_output_path(window_title)
 
-        # Generate filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_title = "".join(c if c.isalnum() or c in ' -_' else '_' for c in window_title)[:50]
-        output_path = f"screenshots/{safe_title}_{timestamp}.png"
-
-    img.save(output_path, "PNG")
-    return output_path
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(str(output_path), "PNG")
+    return str(output_path)
 
 
 def main():
