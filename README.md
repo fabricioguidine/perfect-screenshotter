@@ -1,54 +1,20 @@
-<div align="center">
+# perfect-screenshotter
 
-<img src=".github/assets/banner.svg" alt="perfect-screenshotter" width="100%">
+A tiny Windows command-line utility that captures a pixel-perfect screenshot of a single window matched by partial title. It uses the Win32 `PrintWindow` API for accurate capture even when the window is occluded or layered, and is DPI-aware so dimensions match the real on-screen pixels.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org) [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](#)
 
-</div>
-
-> Pixel-perfect window screenshots on Windows.
-
-`perfect-screenshotter` is a tiny command-line utility that captures a single Windows window by partial title match. It uses the Win32 `PrintWindow` API so the capture is accurate even when the target window is partially occluded or layered, and it is DPI-aware so dimensions match the real on-screen pixels.
-
 ## Features
 
-- List all visible windows with their handle, size, and title.
-- Find a target window by case-insensitive partial title match, with interactive disambiguation when several windows match.
-- Capture the full window (borders and title bar) or only the client area.
-- DPI-aware capture for accurate dimensions on high-DPI displays.
-- Optionally bring the target window to the foreground before capturing.
+- List visible windows with handle, size, and title.
+- Match a window by case-insensitive partial title, with interactive selection when several match.
+- Capture the full window or only the client area (no title bar or borders).
+- Optionally bring the window to the foreground before capturing.
 - Save as PNG to a chosen path, or auto-name as `screenshots/<title>_<timestamp>.png`.
 
-## How it works
-
-```mermaid
-flowchart TD
-    A[CLI args] --> B{Mode}
-    B -->|--list| C[EnumWindows<br/>collect visible windows]
-    C --> D[Print table of<br/>handle, size, title]
-    B -->|--window TERM| E[Match windows by<br/>partial title]
-    E --> F{How many<br/>matches?}
-    F -->|0| G[Exit: not found]
-    F -->|>1| H[Prompt user<br/>to pick one]
-    F -->|1| I[Use the match]
-    H --> I
-    I --> J{--foreground?}
-    J -->|yes| K[Bring window<br/>to front]
-    J -->|no| L[Capture]
-    K --> L
-    L --> M[PrintWindow into<br/>device context]
-    M --> N[Convert bitmap<br/>to PIL Image]
-    N --> O[Save PNG]
-```
-
-## Requirements
-
-- Windows
-- Python 3.8+
-- [Pillow](https://python-pillow.org/) >= 10.0.0
-- [pywin32](https://github.com/mhammond/pywin32) >= 306
-
 ## Installation
+
+Requires Windows and Python 3.8+.
 
 ```powershell
 git clone https://github.com/fabricioguidine/perfect-screenshotter.git
@@ -61,11 +27,8 @@ pip install -r requirements.txt
 ## Usage
 
 ```powershell
-# List all visible windows
+# List all visible windows (add --all to include untitled windows)
 python screenshotter.py --list
-
-# Include windows that have no title
-python screenshotter.py --list --all
 
 # Capture a window whose title contains "Notepad"
 python screenshotter.py --window "Notepad"
@@ -88,16 +51,6 @@ python screenshotter.py --window "Notepad" --foreground
 | `--client` | `-c` | Capture only the client area (exclude title bar and borders) |
 | `--foreground` | `-f` | Bring the window to the foreground before capture |
 | `--all` | `-a` | With `--list`, also show windows that have no title |
-
-## Project structure
-
-```
-perfect-screenshotter/
-├── screenshotter.py    # CLI entry point and capture logic
-├── requirements.txt    # Pillow, pywin32
-├── LICENSE
-└── .gitignore
-```
 
 ## License
 
