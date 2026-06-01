@@ -2,9 +2,7 @@
 
 <img src=".github/assets/banner.svg" alt="perfect-screenshotter" width="100%">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org) [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](#)
 
 </div>
 
@@ -103,4 +101,4 @@ perfect-screenshotter/
 
 ## License
 
-[MIT](LICENSE) © 2026 fabricioguidine
+[MIT](LICENSE)
